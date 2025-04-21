@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VetAssist AI - Assistente de Estudos Veterinários</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        /* (Mantenha todos os seus estilos CSS originais aqui) */
+        .markdown-content h1 { font-size: 1.5rem; font-weight: bold; margin-top: 1.5rem; margin-bottom: 0.5rem; }
+        /* ... (todo o resto do seu CSS) ... */
+    </style>
+</head>
+<body class="bg-bg-light dark:bg-bg-dark text-gray-900 dark:text-gray-100 min-h-screen">
+    <!-- (Todo o seu HTML original aqui) -->
+    <div class="container mx-auto px-4 py-8 max-w-4xl">
+        <!-- ... (cabeçalho, seletor de categorias, área de perguntas/respostas) ... -->
+    </div>
+
+    <script>
+        // CONFIGURAÇÃO DA API (USE SUA CHAVE)
+        const OPENAI_API_KEY = "sk-proj-43p6gZ-572QjxIV0kuDHexFHyPanH3sKRv0YrvT4ewVoTB9IN0Dqzv-QmvrX4ggWhveWAt4K3LT3BlbkFJlz8kBUi5lG-IGSe1-RAV7IgFaeldR12J3tCR24Su9oaN6cTP0UgZa3w8uV41FhLddIGRMk-sM";
+
+        // BANCO DE DADOS LOCAL (simplificado)
+        class VetAssistDB {
+            constructor() {
+                this.dbKey = 'vetassist_data';
+                this.savedData = JSON.parse(localStorage.getItem(this.dbKey)) || [];
+            }
+            saveItem(question, answer, category) {
+                this.savedData.unshift({
+                    id: Date.now(),
+                    question,
+                    answer,
+                    category,
+                    date: new Date().toISOString()
+                });
+                localStorage.setItem(this.dbKey, JSON.stringify(this.savedData));
+            }
+            // ... (outros métodos do banco de dados)
+        }
+
+        // FUNÇÃO PRINCIPAL ATUALIZADA (OpenAI)
+        async function sendQuestion() {
+            const question = questionInput.value.trim();
+            if (!question) return;
+
+            // Configuração inicial
+            loadingIndicator.classList.remove('hidden');
+            responseContainer.innerHTML = '';
+            sendButton.disabled = true;
+
+            try {
+                const category = categorySelect.value;
+                const categoryName = categorySelect.options[categorySelect.selectedIndex].text;
+                
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${OPENAI_API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-3.5-turbo",
+                        messages: [
+                            {
+                                role: "system",
+                                content: `Você é o VetAssist AI, assistente veterinário especializado em ${categoryName}. Forneça respostas técnicas em português (Brasil) com: 1. Explicação precisa 2. Conduta clínica 3. Dosagens quando aplicável`
+                            },
+                            {
+                                role: "user",
+                                content: question
+                            }
+                        ],
+                        temperature: 0.3
+                    })
+                });
+
+                const data = await response.json();
+                const answer = data.choices[0].message.content;
+                
+                // Exibir resposta
+                responseContainer.innerHTML = marked.parse(answer);
+                currentAnswer = answer;
+                
+                // Salvar no histórico
+                db.saveItem(question, answer, category);
+
+            } catch (error) {
+                responseContainer.innerHTML = `
+                    <div class="bg-red-100 dark:bg-red-900 p-4 rounded-lg">
+                        <p class="font-bold">Erro:</p>
+                        <p>${error.message}</p>
+                        <p class="mt-2 text-sm">Verifique sua conexão e chave API</p>
+                    </div>
+                `;
+            } finally {
+                loadingIndicator.classList.add('hidden');
+                sendButton.disabled = false;
+            }
+        }
+
+        // (Mantenha todas as outras funções originais: saveResponse, downloadResponse, etc.)
+        
+        // INICIALIZAÇÃO
+        document.addEventListener('DOMContentLoaded', () => {
+            const db = new VetAssistDB();
+            sendButton.addEventListener('click', sendQuestion);
+            // ... (outros event listeners)
+        });
+    </script>
+</body>
+</html>
